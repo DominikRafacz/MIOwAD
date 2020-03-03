@@ -23,14 +23,14 @@ ys = df.iloc[:, 2].values
 
 plt.scatter(xs, ys)
 
-network = NeuralNetwork([np.array([[1],
-                                   [5],
-                                   [-10],
-                                   [50],
+network = NeuralNetwork([np.array([[100],
+                                   [100],
+                                   [100],
+                                   [100],
                                    [100]]),
-                         np.array([[-100, -50, 10, -5, 1]])],
-                        [np.array([0]),
-                         np.array([20])],
+                         np.array([[100, 100, 100, 100, 100]])],
+                        [np.array([0, 0, 0, 0, 0]),
+                         np.array([0])],
                         [NeuralNetwork.sigmoid, NeuralNetwork.linear])
 
 
