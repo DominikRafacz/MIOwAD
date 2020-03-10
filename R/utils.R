@@ -35,4 +35,4 @@ linear <- function(x) x
 
 sigmoid_deriv <- function(x) exp(-x) / (1 + exp(-x))^2
 
-linear_deriv <- function(x) matrix(1, nrow(x), 1)
+linear_deriv <- function(x) matrix(1, 1, ncol(x))

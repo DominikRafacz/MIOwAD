@@ -5,7 +5,6 @@ train_network <- function(network, X, y, batch_size = NULL, eta = 1e-3, num_epoc
   batch_num <- ceiling(n / batch_size)
 
   derivatives <- match_deriv_to_name(network$activation_names)
-  del_w <- lapply(network$weights, function(mat) matrix(0, nrow(mat), ncol(mat)))
   a <- list()
   e <- list()
 
@@ -14,6 +13,8 @@ train_network <- function(network, X, y, batch_size = NULL, eta = 1e-3, num_epoc
     for (batch in batches) {
       X_batch <- batch$X_batch
       y_batch <- batch$y_batch
+
+      del_w <- lapply(network$weights, function(mat) matrix(0, nrow(mat), ncol(mat)))
 
       for (i in 1:nrow(X_batch)) {
         a[[1]] <- cbind(1, X_batch[i, , drop = FALSE]) %*% network$weights[[1]]
