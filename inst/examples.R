@@ -19,11 +19,13 @@ y <- scale(as.matrix(dat)[, 3, drop = FALSE])
 
 net <- neural_network(1) +
   hidden_layer(10, "sigmoid") +
+  hidden_layer(10, "sigmoid") +
   output_layer(1, "linear")
 
+set.seed(123)
 net %>%
   randomize_weights() %>%
-  train_network(X, y, num_epochs = 10, eta = 1e-4) -> trained
+  train_network_sgd(X, y, num_epochs = 1000, eta = 1e-2) -> trained
 
 trained %>%
   feed_network(X) -> fit
