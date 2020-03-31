@@ -1,11 +1,17 @@
 match_fun_to_name <- function(fun_vec) {
   list(sigmoid = sigmoid,
-       linear = linear)[fun_vec]
+       linear = linear,
+       softmax = softmax,
+       mse = mse,
+       crossentropy = crossentropy)[fun_vec]
 }
 
 match_deriv_to_name <- function(fun_vec) {
   list(sigmoid = sigmoid_deriv,
-       linear = linear_deriv)[fun_vec]
+       linear = linear_deriv,
+       softmax = softmax_deriv,
+       mse = mse_deriv,
+       crossentropy = crossentropy_deriv)[fun_vec]
 }
 
 
@@ -28,11 +34,22 @@ build <- function(nn_proto) {
   network
 }
 
-
 sigmoid <- function(x) 1 / (1 + exp(-x))
 
 linear <- function(x) x
 
+softmax <- function(x) exp(x) / matrix(rep(apply(exp(x), 1, sum), ncol(x)), nrow(x))
+
 sigmoid_deriv <- function(x) exp(-x) / (1 + exp(-x))^2
 
-linear_deriv <- function(x) matrix(1, 1, ncol(x))
+linear_deriv <- function(x) matrix(1, nrow(x), ncol(x))
+
+softmax_deriv <- function(x) softmax(x) * (1 - softmax(x))
+
+mse_deriv <- function(y_real, y_pred) {
+  (y_pred - y_real) / 2
+}
+
+crossentropy_deriv <- function(y_real, y_pred) {
+  - y_real / (y_pred + 0.005)
+}
