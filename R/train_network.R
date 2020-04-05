@@ -124,23 +124,3 @@ train_network_rmsprop <- function(network, X, y, batch_size = NULL, eta = 1e-3, 
   network
 }
 
-#' @export
-randomize_weights <- function(network) {
-  network$weights <- lapply(network$weights, function(mat) {
-    inp <- nrow(mat)
-    out <- ncol(mat)
-    matrix(rnorm(inp * out), inp, out)
-  })
-  network
-}
-
-#' @export
-mse <- function(network, X, y) {
-  sum((feed_network(network, X) - y)^2 / nrow(X))
-}
-
-#' @export
-crossentropy <- function(network, X, y) {
-  # crossentropy
-  -sum(log(feed_network(network, X) + 0.0001) * y) / nrow(X)
-}

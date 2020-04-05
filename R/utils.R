@@ -13,7 +13,7 @@ match_deriv_to_name <- function(fun_vec) {
        linear = linear_deriv,
        softmax = softmax_deriv,
        relu = relu_deriv,
-       tanh = hyperbolic_tan_deriv,
+       tanh = hyperbolic_tan_deriv
        mse = mse_deriv,
        crossentropy = crossentropy_deriv)[fun_vec]
 }
@@ -25,43 +25,12 @@ split_data <- function(X, y, batch_size, batch_num) {
                                          y_batch = y[inds == ind, , drop = FALSE]))
 }
 
-
-build <- function(nn_proto) {
-  network <- list(layers = length(nn_proto$sizes) - 1,
-                  sizes = nn_proto$sizes)
-  network$weights <- lapply(1:network$layers,
-                    function(ind) matrix(0, nrow = network$sizes[ind] + 1,
-                                         ncol = network$sizes[ind + 1]))
-  network$activations <- match_fun_to_name(nn_proto$activations)
-  network$activation_names <- nn_proto$activations
-  class(network) <- "neural_network"
+#' @export
+randomize_weights <- function(network) {
+  network$weights <- lapply(network$weights, function(mat) {
+    inp <- nrow(mat)
+    out <- ncol(mat)
+    matrix(rnorm(inp * out), inp, out)
+  })
   network
-}
-
-sigmoid <- function(x) 1 / (1 + exp(-x))
-
-linear <- function(x) x
-
-softmax <- function(x) exp(x) / matrix(rep(apply(exp(x), 1, sum), ncol(x)), nrow(x))
-
-hyperbolic_tan <- function(x) tanh(x)
-
-relu <- function(x) ifelse(x < 0, 0, x)
-
-sigmoid_deriv <- function(x) exp(-x) / (1 + exp(-x))^2
-
-linear_deriv <- function(x) matrix(1, nrow(x), ncol(x))
-
-softmax_deriv <- function(x) softmax(x) * (1 - softmax(x))
-
-hyperbolic_tan_deriv <- function(x) 1 - tanh(x)^2
-
-relu_deriv <- function(x) ifelse(x < 0, 0, 1)
-
-mse_deriv <- function(y_real, y_pred) {
-  (y_pred - y_real) / 2
-}
-
-crossentropy_deriv <- function(y_real, y_pred) {
-  - y_real / (y_pred + 0.005)
 }
