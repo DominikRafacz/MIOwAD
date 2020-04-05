@@ -2,6 +2,8 @@ match_fun_to_name <- function(fun_vec) {
   list(sigmoid = sigmoid,
        linear = linear,
        softmax = softmax,
+       relu = relu,
+       tanh = hyperbolic_tan,
        mse = mse,
        crossentropy = crossentropy)[fun_vec]
 }
@@ -10,6 +12,8 @@ match_deriv_to_name <- function(fun_vec) {
   list(sigmoid = sigmoid_deriv,
        linear = linear_deriv,
        softmax = softmax_deriv,
+       relu = relu_deriv,
+       tanh = hyperbolic_tan_deriv,
        mse = mse_deriv,
        crossentropy = crossentropy_deriv)[fun_vec]
 }
@@ -40,11 +44,19 @@ linear <- function(x) x
 
 softmax <- function(x) exp(x) / matrix(rep(apply(exp(x), 1, sum), ncol(x)), nrow(x))
 
+hyperbolic_tan <- function(x) tanh(x)
+
+relu <- function(x) ifelse(x < 0, 0, x)
+
 sigmoid_deriv <- function(x) exp(-x) / (1 + exp(-x))^2
 
 linear_deriv <- function(x) matrix(1, nrow(x), ncol(x))
 
 softmax_deriv <- function(x) softmax(x) * (1 - softmax(x))
+
+hyperbolic_tan_deriv <- function(x) 1 - tanh(x)^2
+
+relu_deriv <- function(x) ifelse(x < 0, 0, 1)
 
 mse_deriv <- function(y_real, y_pred) {
   (y_pred - y_real) / 2
