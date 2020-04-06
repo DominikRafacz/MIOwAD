@@ -1,0 +1,282 @@
+---
+title: "Lab 5"
+author: "Dominik Rafacz"
+date: "06.05.2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	fig.align = "center",
+	fig.height = 7,
+	fig.width = 10,
+	cache = TRUE
+)
+```
+
+```{r packages}
+library(MIOwAD)
+library(ggplot2)
+library(dplyr)
+```
+
+## Loading data and splitting into train and test
+
+I've loaded four datasets and splitted it into train and test datasets. 
+
+```{r data}
+dsets <- c("regression/steps-large", 
+           "regression/multimodal-large", 
+           "classification/rings3-regular", 
+           "classification/rings5-regular")
+d_names <- c("steps", "multimodal", "rings3", "rings5")
+
+# load datasets
+dat <- setNames(lapply(dsets, function(dset) {
+  list(train = read.csv(paste0("../../data/", dset, "-training.csv")),
+       test = read.csv(paste0("../../data/", dset, "-test.csv")))
+}), d_names)
+
+# split datasets into X, y, train and test
+X <- c(
+  setNames(lapply(d_names[1:2], function(dset) {
+    list(train = scale(as.matrix(dat[[dset]][["train"]])[, 2, drop = FALSE]),
+         test = scale(as.matrix(dat[[dset]][["test"]])[, 2, drop = FALSE]))
+  }), d_names[1:2]),
+  setNames(lapply(d_names[3:4], function(dset) {
+    list(train = scale(as.matrix(dat[[dset]][["train"]])[, 1:2, drop = FALSE]),
+         test = scale(as.matrix(dat[[dset]][["test"]])[, 1:2, drop = FALSE]))
+  }), d_names[3:4])
+)
+
+y <- c(
+  setNames(lapply(d_names[1:2], function(dset) {
+    list(train = scale(as.matrix(dat[[dset]][["train"]])[, 3, drop = FALSE]),
+         test = scale(as.matrix(dat[[dset]][["test"]])[, 3, drop = FALSE]))
+  }), d_names[1:2]),
+  setNames(lapply(d_names[3:4], function(dset) {
+    list(train = as.matrix(dat[[dset]][["train"]])[, 3, drop = FALSE],
+         test = as.matrix(dat[[dset]][["test"]])[, 3, drop = FALSE])
+  }), d_names[3:4])
+)
+
+# one hot encoded values
+y_ohe <- list(
+  rings3 =  
+    list(train = do.call(cbind, 
+                         lapply(0:2, function(i) 
+                           ifelse(as.matrix(dat[["rings3"]][["train"]])[, 3, drop = FALSE] == i, 1, 0))),
+         test = do.call(cbind, 
+                        lapply(0:2, function(i) 
+                          ifelse(as.matrix(dat[["rings3"]][["test"]])[, 3, drop = FALSE] == i, 1, 0)))),
+  rings5 = 
+    list(train = do.call(cbind, 
+                         lapply(0:2, function(i) 
+                           ifelse(as.matrix(dat[["rings5"]][["train"]])[, 3, drop = FALSE] == i, 1, 0))),
+         test = do.call(cbind, 
+                        lapply(0:2, function(i) 
+                          ifelse(as.matrix(dat[["rings5"]][["test"]])[, 3, drop = FALSE] == i, 1, 0))))
+)
+
+```
+
+## Prepraring experiment
+
+For each dataset I've chosen:
+  - four possible activation functions (linear, sigmoid, relu, tanh),
+  - three possible numbers of hidden layers (one, two, three),
+  - three possible sizes of layers (3, 5, 10).
+  
+Next, I've trained one network for each dataset for each combination of those parameters (totalling $4 \times4 \times 3 \times 3 = 144$ networks). I've used momentum training with some default values (linear activation of last layer for regression, softmax for classification, using momentum optimizer, $\eta = 10^{-5}$ for regression and $\eta = 10^{-7}$ for classification).
+
+```{r networks}
+# prepare lists of input and output layers suitable for datasets
+first_layer <- list( 
+  steps = neural_network(1),
+  multimodal = neural_network(1),
+  rings3 = neural_network(2),
+  rings5 = neural_network(2)
+)
+
+last_layer <- list(
+  steps = output_layer(1, "linear"),
+  multimodal = output_layer(1, "linear"),
+  rings3 = output_layer(3, "softmax"),
+  rings5 = output_layer(3, "softmax")
+)
+
+# set possible parameters
+activations <- c("linear", "sigmoid", "relu", "tanh")
+n_layers <- c(1:3)
+s_layers <- c(3, 5, 10)
+s_layers_names <- c("small", "medium", "big")
+
+# create networks
+networks <- setNames(lapply(d_names, function(dset) 
+  setNames(lapply(activations, function(activation)
+    setNames(lapply(s_layers, function(s)
+      lapply(n_layers, function(n)
+          switch (n,
+                  "1" = first_layer[[dset]] +       # for each dataset, activation, size and n - create net
+                    hidden_layer(s, activation),
+                  "2" = first_layer[[dset]] +
+                    hidden_layer(s, activation) +
+                    hidden_layer(s, activation),
+                  "3" = first_layer[[dset]] +
+                    hidden_layer(s, activation) +
+                    hidden_layer(s, activation) +
+                    hidden_layer(s, activation)
+          ) +
+          last_layer[[dset]]
+      )
+    ), s_layers_names)), 
+    activations)), 
+  d_names)
+
+
+```
+
+```{r training, message=FALSE, warning=FALSE, include=FALSE, cache=TRUE}
+# set seed (for randomizing weights)
+set.seed(1998)
+
+trained <- setNames(lapply(d_names, function(dset) 
+  setNames(lapply(activations, function(activation)
+    setNames(lapply(s_layers_names, function(s)
+      lapply(n_layers, function(n){
+        cat("dataset:", dset, "activation:", activation, "s_layer:", s, "n_layers:", n)
+          networks[[dset]][[activation]][[s]][[n]] %>%
+            randomize_weights() %>%
+            train_network_momentum(X[[dset]][["train"]],  # training network with suitable parameters
+                                   if (dset %in% d_names[3:4]) 
+                                     y_ohe[[dset]][["train"]] 
+                                   else
+                                     y[[dset]][["train"]],
+                                   num_epochs = 500, 
+                                   eta = if (dset %in% d_names[3:4])
+                                     1e-5
+                                   else
+                                     1e-7)
+      })
+    ), s_layers_names)), 
+    activations)), 
+  d_names)
+```
+
+## Convergence pace
+
+
+```{r convergence, echo=FALSE, warning=FALSE}
+# creating data frame with information on convergence:
+conv_data <- do.call(rbind, lapply(d_names, function(dset) 
+  cbind(dataset = dset, do.call(rbind, lapply(activations, function(activation) 
+    cbind(activation = activation, do.call(rbind, lapply(s_layers_names, function(s)
+      cbind(size = s, do.call(rbind, lapply(n_layers, function(n)
+        data.frame(n_layers = n, epoch = 1:500, mse = unlist(trained[[dset]][[activation]][[s]][[n]][["training_history"]])))))))))))))
+
+ggplot(data = conv_data %>% filter(dataset == "steps", mse < 1000), aes(x = epoch, y = mse, color = activation)) +
+  geom_line() +
+  facet_grid(n_layers ~ size) +
+  scale_y_log10() +
+  ggtitle("pace of convergence (mse in time) on dataset 'steps'", "by numer of layers, size of layers and activation function") +
+  theme_bw() +
+  theme(legend.position="bottom")
+
+ggplot(data = conv_data %>% filter(dataset == "multimodal"), aes(x = epoch, y = mse, color = activation)) +
+  geom_line() +
+  facet_grid(n_layers ~ size, scales = "free_y") +
+  scale_y_log10() +
+  ggtitle("pace of convergence (mse in time) on dataset 'multimodal'", "by numer of layers, size of layers and activation function") +
+  theme_bw() +
+  theme(legend.position="bottom")
+
+ggplot(data = conv_data %>% filter(dataset == "rings3"), aes(x = epoch, y = mse, color = activation)) +
+  geom_line() +
+  facet_grid(n_layers ~ size, scales = "free_y") +
+  scale_y_log10() +
+  ggtitle("pace of convergence (mse in time) on dataset 'rings3'", "by numer of layers, size of layers and activation function") +
+  theme_bw()+
+  theme(legend.position="bottom")
+
+ggplot(data = conv_data %>% filter(dataset == "rings5"), aes(x = epoch, y = mse, color = activation)) +
+  geom_line() +
+  facet_grid(n_layers ~ size, scales = "free_y") +
+  scale_y_log10() +
+  ggtitle("pace of convergence (mse in time) on dataset 'rings5'", "by numer of layers, size of layers and activation function") +
+  theme_bw()+
+  theme(legend.position="bottom")
+```
+
+We can draw some conclusions from those plots:
+
+- Linear activation is not once the fastest one, however, it's the most unstable of all -- especially in classification problems.
+- ReLU easily drops into local optimum (it's caused by it's derivative form) and do not reach the global optimum; however, it can be quite fast
+- Sigmoid is slow. Sometimes very slow.
+- Tahn converges faster than ReLU and sigmoid and sometimes reaches better values than other activation functions.
+- The bigger layers the slower convergence -- not necessarily better values.
+- The more layers the greater instability.
+
+## Goodness of fit
+
+```{r score, echo=FALSE, warning=FALSE}
+# applying network to training and testing data 
+fitted <- setNames(lapply(d_names, function(dset) 
+  setNames(lapply(activations, function(activation)
+    setNames(lapply(s_layers_names, function(s)
+      lapply(n_layers, function(n){
+        if (dset %in% d_names[1:2])
+          list(train = trained[[dset]][[activation]][[s]][[n]] %>%
+                 mse(X[[dset]][["train"]], y[[dset]][["train"]]),
+               test = trained[[dset]][[activation]][[s]][[n]] %>%
+                 mse(X[[dset]][["test"]], y[[dset]][["test"]]))
+        else
+          list(train = trained[[dset]][[activation]][[s]][[n]] %>%
+                 accuracy(X[[dset]][["train"]], y[[dset]][["train"]]),
+               test = trained[[dset]][[activation]][[s]][[n]] %>%
+                 accuracy(X[[dset]][["test"]], y[[dset]][["test"]]))
+      })
+    ), s_layers_names)), 
+    activations)), 
+  d_names)
+
+score_data <- do.call(rbind, lapply(d_names, function(dset) 
+  cbind(dataset = dset, do.call(rbind, lapply(activations, function(activation) 
+    cbind(activation = activation, do.call(rbind, lapply(s_layers_names, function(s)
+      cbind(size = s, do.call(rbind, lapply(n_layers, function(n)
+        data.frame(n_layers = c(n, n), set = c("train", "test"), 
+                   value = c(fitted[[dset]][[activation]][[s]][[n]][["train"]],
+                             fitted[[dset]][[activation]][[s]][[n]][["test"]]
+                   )))))))))))))
+
+ggplot(score_data %>% filter(dataset == "steps"), aes(y = value, x = activation, fill = set)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  facet_wrap(n_layers ~ size) + 
+  ggtitle("mse of network on dataset 'steps'", "by numer of layers, size of layers and activation function")+
+  theme_bw()+
+  theme(legend.position="bottom")
+
+ggplot(score_data %>% filter(dataset == "multimodal"), aes(y = value, x = activation, fill = set)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  facet_wrap(n_layers ~ size) + 
+  ggtitle("mse of network on dataset 'multimodal'", "by numer of layers, size of layers and activation function")+
+  theme_bw()+
+  theme(legend.position="bottom")
+
+ggplot(score_data %>% filter(dataset == "rings3"), aes(y = value, x = activation, fill = set)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  facet_wrap(n_layers ~ size) + 
+  ggtitle("accuracy of network on dataset 'rings3'", "by numer of layers, size of layers and activation function")+
+  theme_bw()+
+  theme(legend.position="bottom")
+
+ggplot(score_data %>% filter(dataset == "rings5"), aes(y = value, x = activation, fill = set)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  facet_wrap(n_layers ~ size) + 
+  ggtitle("accuracy of network on dataset 'rings5'", "by numer of layers, size of layers and activation function")+
+  theme_bw()+
+  theme(legend.position="bottom")
+```
+Caution! In plots regarding classification, results on the test set are sometimes better than on the training set -- this may be caused by the fact that networks are way undertrained.
+
+The main conclusion is: result of the training heavilly depends on the dataset and parameters.
