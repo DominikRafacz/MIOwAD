@@ -39,7 +39,7 @@ calc_gradients <- function(network, X_batch, y_batch, loss) {
 }
 
 #' @export
-train_network_sgd <- function(network, X, y, batch_size = NULL, eta = 1e-3, num_epochs = 10, loss = "MSE") {
+train_network_sgd <- function(network, X, y, batch_size = NULL, eta = 1e-3, num_epochs = 10, loss = "mse") {
   # initialize values
   n <- nrow(X)
   if (is.null(batch_size)) batch_size <- n
@@ -71,7 +71,7 @@ train_network_sgd <- function(network, X, y, batch_size = NULL, eta = 1e-3, num_
 
 #' @export
 train_network_momentum <- function(network, X, y, batch_size = NULL, eta = 1e-3,
-                                  gamma = 0.9, num_epochs = 10, loss = "MSE") {
+                                  gamma = 0.9, num_epochs = 10, loss = "mse") {
   n <- nrow(X)
   if (is.null(batch_size)) batch_size <- n
   batch_num <- ceiling(n / batch_size)
@@ -97,7 +97,7 @@ train_network_momentum <- function(network, X, y, batch_size = NULL, eta = 1e-3,
 
 #' @export
 train_network_rmsprop <- function(network, X, y, batch_size = NULL, eta = 1e-3, beta = 0.9, num_epochs = 10,
-                                  loss = "MSE") {
+                                  loss = "mse") {
   n <- nrow(X)
   if (is.null(batch_size)) batch_size <- n
   batch_num <- ceiling(n / batch_size)

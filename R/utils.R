@@ -13,7 +13,7 @@ match_deriv_to_name <- function(fun_vec) {
        linear = linear_deriv,
        softmax = softmax_deriv,
        relu = relu_deriv,
-       tanh = hyperbolic_tan_deriv
+       tanh = hyperbolic_tan_deriv,
        mse = mse_deriv,
        crossentropy = crossentropy_deriv)[fun_vec]
 }
