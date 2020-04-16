@@ -19,5 +19,5 @@ mse_deriv <- function(y_real, y_pred) {
 }
 
 crossentropy_deriv <- function(y_real, y_pred) {
-  - y_real / (y_pred + 0.005)
+  (y_pred - y_real) / (y_pred * (1 - y_pred) + 0.005)
 }
