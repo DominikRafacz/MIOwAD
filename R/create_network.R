@@ -35,6 +35,7 @@ build <- function(nn_proto) {
                                                  ncol = network$sizes[ind + 1]))
   network$activations <- match_fun_to_name(nn_proto$activations)
   network$activation_names <- nn_proto$activations
+  network$training_history <- list(training = NULL, validation = NULL)
   class(network) <- "neural_network"
   network
 }
