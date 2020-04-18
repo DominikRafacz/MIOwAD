@@ -94,7 +94,7 @@ training_setuper <- function(X, batch_size, loss, lambda) {
 }
 
 epoch_finisher <- function(network, X, y, num, verbose, loss_fun, loss_msg, X_validation,
-                           y_validation, validation_threshold) {
+                           y_validation, validation_threshold, min_epochs) {
   m <- loss_fun(network, X, y)
   if (verbose) cat("Epoch: ", num, ", Cost: ", loss_msg, " = ", m, "\n", sep = "")
   network$training_history$training <- c(network$training_history$training, m)
@@ -103,7 +103,7 @@ epoch_finisher <- function(network, X, y, num, verbose, loss_fun, loss_msg, X_va
   if (!is.null(X_validation)) {
     m_validation <- loss_fun(network, X_validation, y_validation)
     network$training_history$validation <- c(network$training_history$validation, m_validation)
-    stop_flag <- (num > 1 &&
+    stop_flag <- (num > min_epochs &&
         network$training_history$validation[num - 1] * validation_threshold < m_validation &&
         network$training_history$training[num - 1] < network$training_history$training[num])
   }
@@ -114,7 +114,8 @@ epoch_finisher <- function(network, X, y, num, verbose, loss_fun, loss_msg, X_va
 #' @export
 train_network_sgd <- function(network, X, y, batch_size = NULL, eta = 1e-3, num_epochs = 10, loss = "mse",
                               lambda = 0, dropout_rate = 0, X_validation = NULL, y_validation = NULL,
-                              validation_threshold = 1.01, verbose = TRUE) {
+                              validation_threshold = 1.01, min_epochs = ceiling(num_epochs / 10),
+                              verbose = TRUE) {
   setup <- training_setuper(X, batch_size, loss, lambda)
 
   for (num in 1:num_epochs) {
@@ -129,7 +130,7 @@ train_network_sgd <- function(network, X, y, batch_size = NULL, eta = 1e-3, num_
     }
 
     fnsh <- epoch_finisher(network, X, y, num, verbose, setup$loss_fun, setup$loss_msg,
-                           X_validation, y_validation, validation_threshold)
+                           X_validation, y_validation, validation_threshold, min_epochs)
     network <- fnsh$network
     if (fnsh$stop_flag) break
   }
@@ -142,7 +143,8 @@ train_network_sgd <- function(network, X, y, batch_size = NULL, eta = 1e-3, num_
 train_network_momentum <- function(network, X, y, batch_size = NULL, eta = 1e-3,
                                   gamma = 0.9, num_epochs = 10, loss = "mse",
                                   lambda = 0, dropout_rate = 0, X_validation = NULL, y_validation = NULL,
-                                  validation_threshold = 1.01, verbose = TRUE) {
+                                  validation_threshold = 1.01, min_epochs = ceiling(num_epochs / 10),
+                                  verbose = TRUE) {
   setup <- training_setuper(X, batch_size, loss, lambda)
 
   momentum <- lapply(network$weights, function(mat) matrix(0, nrow(mat), ncol(mat)))
@@ -155,7 +157,7 @@ train_network_momentum <- function(network, X, y, batch_size = NULL, eta = 1e-3,
     }
 
     fnsh <- epoch_finisher(network, X, y, num, verbose, setup$loss_fun, setup$loss_msg,
-                           X_validation, y_validation, validation_threshold)
+                           X_validation, y_validation, validation_threshold, min_epochs)
     network <- fnsh$network
     if (fnsh$stop_flag) break
   }
@@ -167,7 +169,8 @@ train_network_momentum <- function(network, X, y, batch_size = NULL, eta = 1e-3,
 train_network_rmsprop <- function(network, X, y, batch_size = NULL, eta = 1e-3, beta = 0.9, num_epochs = 10,
                                   loss = "mse",
                                   lambda = 0, dropout_rate = 0, X_validation = NULL, y_validation = NULL,
-                                  validation_threshold = 1.01, verbose = TRUE) {
+                                  validation_threshold = 1.01, min_epochs = ceiling(num_epochs / 10),
+                                  verbose = TRUE) {
   setup <- training_setuper(X, batch_size, loss, lambda)
 
   eg2 <- lapply(network$weights, function(mat) matrix(0, nrow(mat), ncol(mat)))
@@ -183,7 +186,7 @@ train_network_rmsprop <- function(network, X, y, batch_size = NULL, eta = 1e-3, 
     }
 
     fnsh <- epoch_finisher(network, X, y, num, verbose, setup$loss_fun, setup$loss_msg,
-                           X_validation, y_validation, validation_threshold)
+                           X_validation, y_validation, validation_threshold, min_epochs)
     network <- fnsh$network
     if (fnsh$stop_flag) break
   }
