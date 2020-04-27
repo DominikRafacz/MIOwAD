@@ -14,44 +14,36 @@ mexican_hat <- function(x, scale) {
 #' @importFrom dplyr `%>%` mutate filter pull
 #' @export
 kohonen_network <- function(input_X, N, M, lambda = 100, ngh_fun = gauss,
-                            scale = 1, init = "grid") {
-  if (init == "random") {
-    init_data <- rnorm(ncol(input_X) * N * M)
-  } else if (init == "grid") {
-    init_data <- as.vector(t(
-      cbind(rep(seq(maxX, minX, length.out = N), each = M),
-            seq(maxY, minY, length.out = M))))
-  }
-  minX <- min(input_X[, 1])
-  maxX <- max(input_X[, 1])
-  minY <- min(input_X[, 2])
-  maxY <- min(input_X[, 2])
-  weights <- array(init_data, c(ncol(input_X), N, M))
+                            scale = 1) {
+  num_obs <- nrow(input_X)
+  inp_dims <- ncol(input_X)
 
   # inicjalizujemy losowo tensor wag - jest to tablica trojwymiarowa, gdzie pierwszy wymiar
   # tabicy odpowiada przestrzeni wejsciowej, a pozostałe dwa wymiary odpowiadaja rozmieszczeniu
   # neuronow - czyli weights[k, i, j] oznacza wage neuronu [i, j] na elemencie k-tym wektora
   # wejsciowego; taka kolejnosc upraszcza obliczenia macierzowe
-  #weights <- array(rnorm(ncol(input_X) * N * M), c(ncol(input_X), N, M))
+  init_data <- rnorm(inp_dims * N * M)
+  weights <- array(init_data, c(inp_dims, N, M))
 
   # liczymy macierz odleglosci pomiedzy neuronami w siatce - mozemy to zrobic juz na poczatku,
   # gdyz ta odleglosc sie nie zmienia pomiedzy iteracjami algorytmu; ramka danych sklada sie z
   # N^2 * M^2 wierszy, gdzie kazdy wiersz zawiera w kolumnie dist odleglosc pomiedzy dwoma neuronami
   # o wspolrzednych (x1, y1) i (x2, y2); odleglosc liczymy przez przeksztalcenie odleglosci z metryki
   # miejskiej przez podana na wejsciu funkcje ngh_fun, np. funkcje gaussa
-  ngh <- data.frame(
-    x1 = rep(rep(1:N, M), M * N),
-    y1 = rep(rep(1:M, each = N), M * N),
-    x2 = rep(rep(1:N, M), each = M * N),
-    y2 = rep(rep(1:M, each = N), each = M * N)
-  ) %>%
-    mutate(dist = ngh_fun(abs(x1 - x2) + abs(y1 - y2), scale))
+  ngh <-
+    mutate(data.frame(
+      x1 = rep(rep(1:N, M), M * N),
+      y1 = rep(rep(1:M, each = N), M * N),
+      x2 = rep(rep(1:N, M), each = M * N),
+      y2 = rep(rep(1:M, each = N), each = M * N)
+    ),
+    dist = ngh_fun(abs(x1 - x2) + abs(y1 - y2), scale))
 
   # dla kazdej iteracji algorytmu od 1 do lambda
   for (iter in 1:lambda) {
 
     # tworzymy permutajcje indeksow obserwacji macierzy wejscioej
-    perm <- sample(1:nrow(input_X), nrow(input_X))
+    perm <- sample(1:num_obs, num_obs)
 
     # dla kazdej obserwacji tablicy wejsciowej w nowej permutacji
     for (ind in perm) {
@@ -66,17 +58,16 @@ kohonen_network <- function(input_X, N, M, lambda = 100, ngh_fun = gauss,
       mininds <- which(dists == min(dists), arr.ind = TRUE)[1, ]
 
       # wybieramy z macierzy odleglosci tylko te rekordy, ktore odpowiadaja wyznaczonemu neuronowi
-      ngh %>%
-        filter(x1 == mininds[1],
-               y1 == mininds[2]) %>%
-        pull(dist) -> n_factor
+      n_factor <- filter(ngh,
+             x1 == mininds[1],
+             y1 == mininds[2])[["dist"]]
 
       # aktualizujemy wagi, dla kazdego neuronu dodajac do jego wagi roznice wagi neuronu i wektora
       # obserwacji wejsciowej, przemnozone przez wage odleglosci neuronu oraz przez wspolczynnik
       # wygaszania
       weights <- weights +
         (-weights + as.numeric(input_X[ind, ])) *
-        rep(n_factor, each = ncol(input_X)) *
+        rep(n_factor, each = inp_dims) *
         exp(-iter/lambda)
     }
   }
@@ -126,7 +117,7 @@ generate_net_plot_data <- function(net) {
   list(net_points = net_points, net_lines = net_lines)
 }
 
-#' @importFrom ggplot2 ggplot aes geom_point geom_segment
+#' @importFrom ggplot2 ggplot aes geom_point geom_segment xlab ylab labs ggtitle theme_minimal scale_x_continuous scale_y_continuous
 #' @export
 plot_kohonen <- function(net_plot_data, input_X,
                          inp_dims_plot = c(1, 2),
@@ -137,21 +128,24 @@ plot_kohonen <- function(net_plot_data, input_X,
                              y = input_X[, inp_dims_plot[2]],
                              color = as.factor(input_X[, inp_class])),
                size = 1.5) +
-    geom_point(data = net_plot_data$net_points,
-               mapping = aes(x = net_plot_data$net_points[[paste0("inp_dim_", inp_dims_plot[1])]],
-                             y = net_plot_data$net_points[[paste0("inp_dim_", inp_dims_plot[2])]]),
-               shape = 23,
-               color = "black",
-               fill = "white") +
     geom_segment(data = net_plot_data$net_lines,
                  mapping = aes(x = net_plot_data$net_lines[[paste0("inp_dim_", inp_dims_plot[1])]],
                                y = net_plot_data$net_lines[[paste0("inp_dim_", inp_dims_plot[2])]],
                                xend = net_plot_data$net_lines[[paste0("inp_dim_", inp_dims_plot[1], "_next")]],
                                yend = net_plot_data$net_lines[[paste0("inp_dim_", inp_dims_plot[2], "_next")]])) +
+    geom_point(data = net_plot_data$net_points,
+               mapping = aes(x = net_plot_data$net_points[[paste0("inp_dim_", inp_dims_plot[1])]],
+                             y = net_plot_data$net_points[[paste0("inp_dim_", inp_dims_plot[2])]]),
+               shape = 23,
+               size = 2,
+               color = "black",
+               fill = "white") +
     scale_color_legendary() +
-    xlab(paste0("input dimension ", inp_dims_plot[1])) +
-    ylab(paste0("input dimension ", inp_dims_plot[2])) +
+    scale_x_continuous(limits = c(min(input_X[inp_dims_plot[1]]), c(max(input_X[inp_dims_plot[1]])))) +
+    scale_y_continuous(limits = c(min(input_X[inp_dims_plot[2]]), c(max(input_X[inp_dims_plot[2]])))) +
+    xlab(paste0("input dimension ", inp_dims_plot[1], ": ", colnames(input_X)[inp_dims_plot[1]])) +
+    ylab(paste0("input dimension ", inp_dims_plot[2], ": ", colnames(input_X)[inp_dims_plot[2]])) +
     labs(color = "class") +
-    ggtitle("Kohonen") +
+    ggtitle(paste0("Kohonen plot ", colnames(input_X)[inp_dims_plot[1]], " vs. ", colnames(input_X)[inp_dims_plot[2]])) +
     theme_minimal()
 }
