@@ -65,3 +65,6 @@ randomize_weights <- function(network) {
   })
   network
 }
+
+scale_color_legendary <- function() scale_colour_manual(values = c("#e55934", "#5bc0eb", "#9bc53d", "#fde74c", "#CE8D66", "#963484"))
+scale_fill_legendary <- function() scale_fill_manual(values = c("#e55934", "#5bc0eb", "#9bc53d", "#fde74c", "#CE8D66", "#963484"))
