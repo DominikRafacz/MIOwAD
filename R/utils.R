@@ -67,7 +67,7 @@ randomize_weights <- function(network) {
 }
 
 #' @importFrom ggplot2 scale_colour_manual
-scale_color_legendary <- function() scale_colour_manual(values = c("#e55934", "#5bc0eb", "#9bc53d", "#fde74c", "#CE8D66", "#963484", "#704E2E", "#F4F1BB"))
+scale_color_legendary <- function() scale_colour_manual(values = c("#e55934", "#5bc0eb", "#9bc53d", "#fde74c", "#CE8D66", "#963484", "#704E2E", "#F4F1BB", "#111111", "#EEEEEE"))
 
 #' @importFrom ggplot2 scale_colour_manual
-scale_fill_legendary <- function() scale_fill_manual(values = c("#e55934", "#5bc0eb", "#9bc53d", "#fde74c", "#CE8D66", "#963484", "#704E2E", "#F4F1BB"))
+scale_fill_legendary <- function() scale_fill_manual(values = c("#e55934", "#5bc0eb", "#9bc53d", "#fde74c", "#CE8D66", "#963484", "#704E2E", "#F4F1BB", "#111111", "#EEEEEE"))
