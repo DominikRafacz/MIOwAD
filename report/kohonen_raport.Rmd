@@ -1,7 +1,7 @@
 ---
 title: "Sprawozdanie - sieci Kohonena"
 author: "Dominik Rafacz"
-date: "4/27/2020"
+date: "02.05.2020"
 output: pdf_document
 ---
 
@@ -35,6 +35,7 @@ Potwierdzam samodzielność powyższej pracy oraz niekorzystanie przeze mnie z n
 ```{r lab0_libraries}
 library(MIOwAD)      # pakiet z sieciami
 library(dplyr)       # transformacja danych
+library(stringi)     # transformacja danych 
 library(ggplot2)     # wykresy
 library(patchwork)   # laczenie wykresow
 ```
@@ -44,6 +45,17 @@ library(patchwork)   # laczenie wykresow
 ```{r lab0_data}
 X_2d <- read.csv("../data/kohonen/hexagon.csv")
 X_3d <- read.csv("../data/kohonen/cube.csv")
+
+X_mnist <- read.csv("../data/kohonen/mnist_train.csv", header = FALSE)
+X_mnist <- cbind(number = X_mnist[, 1], X_mnist[ , -1]/255)
+X_mnist <- do.call(cbind, lapply(X_mnist, function(col) if(sum(col) == 0) NULL else col))
+
+X_uci <- cbind(
+  class = read.csv("../data/kohonen/ucihar_y_train.txt", header = FALSE)[[1]],
+  do.call(rbind, lapply(readLines("../data/kohonen/ucihar_X_train.txt"), function(row)
+  as.numeric(stri_split_regex(row, " +", omit_empty = TRUE)[[1]]))
+  ))
+
 ```
 
 # Labortorium 7
@@ -144,3 +156,66 @@ plots[["lab7"]][["3d"]][["mexican_hat"]][["10"]]
 
 
 Tutaj każdy wykres to tak naprawdę zestaw trzech wykresów, prezentujących rzuty przestrzeni wejściowej na poszczególne płaszczyzny wyznaczone przez pary osi. Wykresy nie są aż tak czytelne (trudniej zobaczyć strukturę sieci), ale możemy wyciągnąć podobne wnioski jak w przypadku sieci 2d.
+
+# Labortorium 8
+
+***Cel: implementacja heksagonalnych sieci Kohonena i porównanie ich dopasowania do danych z sieciami kwadratwoymi***
+
+W tym laboratorium zaimplementowałem możliwość wyboru heksagonalnej topologii sieci. Wykonałem eksperyment, dopasowując sieci Kohonena do danych ze zbioru MNIST oraz ze zbioru UCI HAR. Do każdego z tych zbiorów dopasowałem po cztery sieci, wykorzystując wszystkie kombinacje topologii (kwadratowa lub sześciokątna) i funkcji sąsiedzwa (gaussowska oraz minus druga pochodna funkcji gaussowskiej).
+
+```{r lab8_train}
+topologies = c("square", "hex") # dodatkowy parametr odpowiedzialny za topologie sieci
+nets[["lab8"]] <- list(mnist = list(), uci = list())
+nets[["lab8"]][["mnist"]] <- nlapply(names(ngh_funs), function(fun) {
+  nlapply(topologies, function(topology) 
+    kohonen_network(X_mnist[, -1], N = 17, M = 16, lambda = 10, 
+                    ngh_fun = ngh_funs[[fun]], 
+                    scale = if (fun == "gauss") 0.6 else 5, 
+                    topology = topology,  
+                    verbose = FALSE))
+})
+
+nets[["lab8"]][["uci"]] <- nlapply(names(ngh_funs), function(fun) {
+  nlapply(topologies, function(topology) 
+    kohonen_network(X_uci[, -1], N = 11, M = 12, lambda = 10, 
+                    ngh_fun = ngh_funs[[fun]], 
+                    scale = if (fun == "gauss") 0.8 else 4, 
+                    topology = topology,
+                    verbose = FALSE))
+})
+  
+
+```
+
+```{r lab8_plot}
+plots[["lab8"]] <- list()
+plots[["lab8"]][["mnist"]] <- nlapply(names(ngh_funs), function(fun) 
+  nlapply(topologies, function(topology)
+    plot_kohonen_w_pca(nets[["lab8"]][["mnist"]][[fun]][[topology]], X_mnist, 
+                       inp_class = 1)
+  ))
+
+plots[["lab8"]][["uci"]] <- nlapply(names(ngh_funs), function(fun) 
+  nlapply(topologies, function(topology)
+    plot_kohonen_w_pca(nets[["lab8"]][["uci"]][[fun]][[topology]], X_uci, 
+                       inp_class = 1)
+  ))
+```
+
+```{r lab8_plot_print}
+plots[["lab8"]][["mnist"]][["gauss"]][["square"]]
+plots[["lab8"]][["mnist"]][["gauss"]][["hex"]]
+plots[["lab8"]][["mnist"]][["mexican_hat"]][["square"]]
+plots[["lab8"]][["mnist"]][["mexican_hat"]][["hex"]]
+
+plots[["lab8"]][["uci"]][["gauss"]][["square"]]
+plots[["lab8"]][["uci"]][["gauss"]][["hex"]]
+plots[["lab8"]][["uci"]][["mexican_hat"]][["square"]]
+plots[["lab8"]][["uci"]][["mexican_hat"]][["hex"]]
+```
+
+Jak widzimy na wizualizacjach, funkcja sąsiedztwa "mexican hat" nie sprawdza się najlepiej -- neurony blisko obserwacji "przestrzeliwują", ate trochę dalej są odpychane, co skutkuje w bardzo chaotycznym ich rozmieszczeniu na obu zbiorach danych, niezależnie od topologii sieci.
+
+Jeśli chodzi o gaussowską funckję sąsiedztwa, sprawuje się ona zdecydowanie lepiej. Jeżeli chodzi o porównanie topologii kwadratóœ i sześciokątów, sześciokąty dopasowują się do danych nieco lepiej, gdyż mają więcej swobody.
+
+Na wizualizacjach możemy wyodrębnić pewne skupiska neuronów, ale trudno dostrzec wyraźne klastry, głównie dlatego, że same dane również trudno zwizualizować w ten sposób.
